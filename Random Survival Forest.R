@@ -16,7 +16,8 @@ dim(data)
 # Check for missing values - there is no missing value
 sum(is.na(data))
 
-# The response time variable is "survival" (continuous) and the response status variable is "eventdeath" (integers of 0 and 1)
+# The response time variable is "survival" (continuous) and the response status 
+# variable is "eventdeath" (integers of 0 and 1)
 summary(data$survival)
 summary(data$eventdeath)
 
@@ -58,7 +59,8 @@ summary(data$Contig45645_RC)
 summary(data$Contig44916_RC)
 summary(data$AF067420)
 
-# Convert integers with binary or nominal interpretations into factors to feed in the rfsrc function
+# Convert integers with binary or nominal interpretations into factors to feed 
+# in the rfsrc function
 data$chemo <- factor(data$chemo)
 data$hormonal <- factor(data$hormonal)
 data$amputation <- factor(data$amputation)
@@ -115,13 +117,17 @@ plot.tune <- function(model , linear = TRUE) {
 plot.tune(tuneC)
 
 # Find the best ntree
-C <- rfsrc(Surv(survival, eventdeath) ~., data = clinical.train, ntree = 2000, nodesize = 45, mtry = 3, sampsize = 120, nsplit = 10, importance = TRUE, tree.err = TRUE, seed = 2019)
+C <- rfsrc(Surv(survival, eventdeath) ~., 
+           data = clinical.train, ntree = 2000, 
+           nodesize = 45, mtry = 3, sampsize = 120, nsplit = 10, 
+           importance = TRUE, tree.err = TRUE, seed = 2019)
 print(C)
 
 err.clinical <- gg_error(C)
 err.clinical <- na.omit(err.clinical)
 
-# The following data frame gives the optimal number of trees (ntree) and the corresponding error rate
+# The following data frame gives the optimal number of trees (ntree) and the 
+# corresponding error rate
 (Cntree.data <- as.data.frame(err.clinical[err.clinical$error == min(err.clinical$error), ]))
 names(Cntree.data) <- NULL
 rownames(Cntree.data) <- NULL
@@ -131,10 +137,16 @@ Cntree <- as.numeric(Cntree.data[2])
 Cerr <- as.numeric(Cntree.data[1])
 
 # Plot Figure 1
-plot(err.clinical) + theme_bw() + geom_point(data = Cntree.data, aes(x = Cntree , y = Cerr), color = "red") + labs(title = "Finding Optimal ntree for Clinical Model")
+plot(err.clinical) + theme_bw() + geom_point(data = Cntree.data, 
+                                             aes(x = Cntree , y = Cerr), 
+                                             color = "red") + labs(title = "Finding Optimal ntree for Clinical Model")
 
 # Cmodel refers to Clinical Model, constructed based on optimal ntree, mtry and nodesize
-Cmodel <- rfsrc(Surv(survival, eventdeath) ~., data = clinical.train, ntree = Cntree, nodesize = 45, mtry = 3, sampsize = 120, nsplit = 10, importance = TRUE, tree.err = TRUE, seed = 2019)
+Cmodel <- rfsrc(Surv(survival, eventdeath) ~., 
+                data = clinical.train, ntree = Cntree, 
+                nodesize = 45, mtry = 3, sampsize = 120, 
+                nsplit = 10, importance = TRUE, tree.err = TRUE, seed = 2019)
+
 # Results for the tuned model shown by Table 3
 print(Cmodel)
 
@@ -144,7 +156,8 @@ plot(gg_vimp(Cmodel)) + theme(legend.position = c(0.8, 0.2)) + labs(fill = "VIMP
 # Plot forest estimated OOB survival probabilities for each training subject over time
 # blue for censoring and red for event (Figure 3)
 gg_dtaC <- gg_rfsrc(Cmodel)
-plot(gg_dtaC, alpha = 0.3)  + scale_color_manual(values = c("blue", "red")) +  theme_bw() + labs(y = "Survival Probability", title = "OOB Prediction from Clinical Model")
+plot(gg_dtaC, alpha = 0.3)  + scale_color_manual(values = c("blue", "red")) +  theme_bw() + labs(y = "Survival Probability", 
+                                                                                                 title = "OOB Prediction from Clinical Model")
 
 # Obtain plots of OOB survival, OOB mortality and OOB Brier score (Figure 3)
 plot.survival(Cmodel, plots.one.page = FALSE)
@@ -158,7 +171,9 @@ plot.subsample(subsample(Cmodel, B = 50), cex = 0.7)
 
 # Fit the training model to the testing data set (Table 3)
 pred.test.clinical = predict(Cmodel, newdata = clinical.test )
-C.clinical <- rcorr.cens(-pred.test.clinical$predicted, Surv(clinical.test$survival, clinical.test$eventdeath))["C Index"]
+C.clinical <- rcorr.cens(-pred.test.clinical$predicted, 
+                         Surv(clinical.test$survival, 
+                              clinical.test$eventdeath))["C Index"]
 
 # Testing C Index
 C.clinical
@@ -176,13 +191,16 @@ print(tuneB$rf)
 plot.tune(tuneB)
 
 # Find the best ntree 
-B <- rfsrc(Surv(survival, eventdeath) ~., data = train, ntree = 2000, nodesize = 30, mtry = 166, sampsize = 120, nsplit = 10, importance = TRUE, tree.err = TRUE, seed = 2019)
+B <- rfsrc(Surv(survival, eventdeath) ~., data = train, 
+           ntree = 2000, nodesize = 30, mtry = 166, sampsize = 120,
+           nsplit = 10, importance = TRUE, tree.err = TRUE, seed = 2019)
 print(B)
 
 err <- gg_error(B)
 err <- na.omit(err)
 
-# The following data frame gives the optimal number of trees (ntree) and the corresponding error rate
+# The following data frame gives the optimal number of trees (ntree) and the 
+# corresponding error rate
 (Bntree.data <- as.data.frame(err[err$error == min(err$error), ]))
 names(Bntree.data) <- NULL
 rownames(Bntree.data) <- NULL
@@ -192,9 +210,13 @@ Bntree <- as.numeric(Bntree.data[2])
 Berr <- as.numeric(Bntree.data[1]) 
 
 # Figure 1
-plot(err) + theme_bw() + geom_point(data = Bntree.data, aes(x = Bntree , y = Berr), color = "red") + labs(title = "Finding Optimal ntree for Clinical & Genomic Model")
+plot(err) + theme_bw() + geom_point(data = Bntree.data, 
+                                    aes(x = Bntree , y = Berr), 
+                                    color = "red") + labs(title = "Finding Optimal ntree for Clinical & Genomic Model")
 
-Bmodel <- rfsrc(Surv(survival, eventdeath) ~., data = train, ntree = Bntree, nodesize = 30, mtry = 166, sampsize = 120, nsplit = 10, importance = TRUE, tree.err = TRUE, seed = 2019)
+Bmodel <- rfsrc(Surv(survival, eventdeath) ~., data = train, 
+                ntree = Bntree, nodesize = 30, mtry = 166, sampsize = 120, 
+                nsplit = 10, importance = TRUE, tree.err = TRUE, seed = 2019)
 # Table 2
 print(Bmodel)
 
@@ -209,7 +231,8 @@ length(Bmodel$importance > 0)
 
 # Figure 4, top right panel
 gg_dta <- gg_rfsrc(Bmodel)
-plot(gg_dta, alpha = 0.3) + scale_color_manual(values = c("blue", "red")) + theme(legend.position = c(0.2, 0.2)) + theme_bw() + labs(y = "Survival Probability", title = "OOB Prediction from Clinical & Genomic Model")
+plot(gg_dta, alpha = 0.3) + scale_color_manual(values = c("blue", "red")) + theme(legend.position = c(0.2, 0.2)) + theme_bw() + labs(y = "Survival Probability", 
+                                                                                                                                     title = "OOB Prediction from Clinical & Genomic Model")
 
 # Figure 4, OOB survival, OOB Brier score and OOB mortality
 plot.survival(Bmodel, plots.one.page = FALSE)
@@ -223,12 +246,14 @@ plot.subsample(subsample(Bmodel, B = 50), pmax = 15, cex = 0.4)
 pred.test = predict(Bmodel, newdata = test )
 
 # Testing C Index
-C <- rcorr.cens(-pred.test$predicted, Surv(test$survival, test$eventdeath))["C Index"]
+C <- rcorr.cens(-pred.test$predicted, 
+                Surv(test$survival, test$eventdeath))["C Index"]
 # Testing Error = 1 - C Indexx
 1 - C
 
 # Partial plot for top 15 VIMP in the best model (Figure 6)
-plot.variable(Bmodel, surv.type = "surv", nvar = 15,  plots.per.page = 3, time = 5, partial = TRUE)
+plot.variable(Bmodel, surv.type = "surv", nvar = 15,  
+              plots.per.page = 3, time = 5, partial = TRUE)
 
 
 
