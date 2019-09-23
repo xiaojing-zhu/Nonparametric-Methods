@@ -1,0 +1,123 @@
+---
+title: "Piecewise Regression"
+author: "Xiaojing Zhu"
+date: "2/17/2019"
+output: html_document
+---
+
+### Simulation Setup 
+
+First, randomly generate 100 pairs of $(x_i,y_i)$ from $Y=sin(4X)+\epsilon$ where $X\sim U[0,1]$ and $\epsilon\sim N(0,\frac{1}{3})$. Set a seed of 1234 to generate reproducible $x_i$ and $\epsilon_i$. The true relationship between X and Y are plotted in green.        
+           
+The yellow region suggests an ascending trend in the data, and the orange region shows the descending trend in the data.      
+           
+Linear, quadratic, and cubic regression models are built to fit the data, and the fitted lines or curves are plotted in black.        
+            
+Piecewise linear, piecewise quadratic, and piecewise cubic regression models are also used to fit the data, and the fitted lines or curves are shown in red. These three piecewise regression models are built based on power splines, with a knot at $x=0.5$. The piecewise linear model is $y_i = \beta_0+\beta_1 x_i+\beta_{11}(x-0.5)_+ + \epsilon_i$. The piecewise quadratic model is $y_i = \beta_0+\beta_1 x_i+ \beta_2 x_i^2 + \beta_{21}(x-0.5)^2_+ + \epsilon_i$. The piecewise cubic model is $y_i = \beta_0+\beta_1 x_i+ \beta_2 x_i^2 + \beta_3 x_i^3 + \beta_{31}(x-0.5)^3_+ + \epsilon_i$.           
+          
+
+```{r}
+# Set seed to generate reproducible random numbers
+set.seed(1234)
+# X follows a uniform distribution
+X <- runif(100, 0, 1)
+
+# Set seed to generate reproducible random numbers
+set.seed(1234)
+# The error term follows a normal distribution
+E <- rnorm(100, 0, 1/3)
+
+# Write a function "sinfunc" to generate Y
+sinfunc <- function(x){ sin(4 * x) }
+
+# The Y coordinate of the points
+Y <- sinfunc(X) + E
+
+# Raise X to the power of 2 and 3 to feed in polynomial linear models in later sections
+X2 <- X^2
+X3 <- X^3
+
+# Basis functions for piecewise linear, quadratic and cubic with a knot at x = 0.5
+B1 <- ifelse(X > 0.5, (X - 0.5), 0)
+B2 <- ifelse(X > 0.5, (X - 0.5)^2, 0)
+B3 <- ifelse(X > 0.5, (X - 0.5)^3, 0)
+DATA <- data.frame(X, X2, X3, Y, B1, B2, B3)
+
+# Specify the vector "xaxis" to store values along the x-axis
+xaxis <- seq(0, 1, length = 100)
+```
+
+### Linear vs. Piecewise Linear Regression Models
+```{r}
+# predict(lm(Y ~ X, DATA)) contains the linear fitted values
+# predict(lm(Y ~ X + B1, DATA)) contains the piecewise linear fitted values
+Linear <- data.frame(X = DATA$X[order(DATA$X)], 
+                     Y = DATA$Y[order(DATA$X)], 
+                     LF = predict(lm(Y ~ X, DATA))[order(DATA$X)], 
+                     PLF = predict(lm(Y ~ X + B1, DATA))[order(DATA$X)])
+```
+
+```{r}
+plot(Linear$X, Linear$Y, col = "white", xlab = "x", ylab = "y", 
+     main = "Linear (Black) and Piecewise Linear (Red)", cex = 0.8)
+rect(xleft = 0, ybottom = -1.5, xright = 0.5, ytop = 1.8, col = "yellow", border = "yellow") 
+rect(xleft = 0.5, ybottom = -1.5, xright = 1, ytop = 1.8, col = "orange", border = "orange")
+points(Linear$X, Linear$Y, col = "black", cex = 0.8)
+# True relationship is in green
+lines(xaxis, sinfunc(xaxis), col = "green")
+# Linear fitted line is in black
+lines(Linear$X, Linear$LF)
+# Piecewise linear fitted line is in red
+lines(Linear$X, Linear$PLF, col = "red")
+```
+
+### Quadratic and Piecewise Quadratic Regression Models
+```{r}
+# predict(lm(Y ~ X + X2, DATA)) contains the quadratic fitted values
+# predict(lm(Y ~ X + X2 + B2, DATA)) contains the piecewise quadratic fitted values
+Quad <- data.frame(X = DATA$X[order(DATA$X)], 
+                   Y = DATA$Y[order(DATA$X)], 
+                   QF = predict(lm(Y ~ X + X2, DATA))[order(DATA$X)], 
+                   PQF = predict(lm(Y ~ X + X2 + B2, DATA))[order(DATA$X)])
+```
+
+
+```{r}
+plot(DATA$X, DATA$Y, col = "white", xlab = "x", ylab = "y", 
+     main = "Quadratic (Black) and Piecewise Quadratic (Red)", cex = 0.8)
+rect(xleft = 0, ybottom = -1.5, xright = 0.5, ytop = 1.8, col = "yellow", border = "yellow") 
+rect(xleft = 0.5, ybottom = -1.5, xright = 1, ytop = 1.8, col = "orange", border = "orange")
+points(DATA$X, DATA$Y, col = "black", cex = 0.8)
+# True relationship is in green
+lines(xaxis, sinfunc(xaxis), col = "green")
+# Quadratic fitted curve is in black
+lines(Quad$X, Quad$QF)
+# Piecewise Quadratic fitted curve is in red
+lines(Quad$X, Quad$PQF, col = "red")
+```
+
+### Cubic (Black) and Piecewise Cubic Regression Models
+```{r}
+# predict(lm(Y ~ X + X2 + X3, DATA)) contains the cubic fitted values
+# predict(lm(Y ~ X + X2 + X3 + B3, DATA)) contains the piecewise cubic fitted values
+Cubic <- data.frame(X = DATA$X[order(DATA$X)], 
+                    Y = DATA$Y[order(DATA$X)], 
+                    CF = predict(lm(Y ~ X + X2 + X3, DATA))[order(DATA$X)], 
+                    PCF = predict(lm(Y ~ X + X2 + X3 + B3, DATA))[order(DATA$X)])
+```
+
+
+```{r}
+plot(DATA$X, DATA$Y, col = "white", xlab = "x", ylab = "y", 
+     main = "Cubic (Black) and Piecewise Cubic (Red)", cex = 0.8)
+rect(xleft = 0, ybottom = -1.5, xright = 0.5, ytop = 1.8, col = "yellow", border = "yellow") 
+rect(xleft = 0.5, ybottom = -1.5, xright = 1, ytop = 1.8, col = "orange", border = "orange")
+points(DATA$X, DATA$Y, col = "black", cex = 0.8)
+# True relationship is in green
+lines(xaxis, sinfunc(xaxis), col = "green")
+# Cubic fitted curve is in black
+lines(Cubic$X, Cubic$CF)
+# Piecewise cubic fitted curve is in red
+lines(Cubic$X, Cubic$PCF, col = "red")
+```
+

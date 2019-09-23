@@ -1,0 +1,283 @@
+---
+title: "Lasso vs. Group Lasso"
+author: "Xiaojing Zhu"
+date: "9/22/2019"
+output: html_document
+---
+
+##Background - Literature Review
+
+In linear regression, we often have categorical predictors such as regions. The research question is to find a solution to deal with these categorical predictors in the setting of penalized regression.                       
+                   
+To answer the research question, I compared the pros and cons of the lasso method discussed in lecture 6 with the group lasso method proposed by Yuan & Lin (2006).          
+
+The penalized regression setting is built upon the general regression setting with p predictors: $\mathbf{Y}=\mathbf{X}\boldsymbol{\beta}+\boldsymbol{\epsilon}$, where $\mathbf{Y}$ is an $n \times 1$ vector, $\boldsymbol{\epsilon} \sim N_n(\mathbf{0},\sigma^2 \mathbf{I})$, $\mathbf{X}$ is the $n \times p$ matrix of features and $\boldsymbol{\beta}$ is a coefficient vector of size $p$.        
+
+Different from the general regression setting, the penalized regression methods involves penalties, in the forms of constraints, for having too many predictors in the model.         
+
+The lasso regression, penalized version, discussed in lecture 6 is $$\hat\beta^{\text{LASSO}}(\lambda)=\text{arg }\text{min}_{\beta}\big(\frac{1}{2n}||Y-X\boldsymbol\beta||^2_2+\lambda||\boldsymbol\beta||_{1} \big)$$ which is essentially the same as the popular lasso proposed by Tibshirani (1996), as cited in Yuan & Lin (2006): $$\hat\beta^{\text{LASSO}}(\lambda)=\text{arg }\text{min}_{\beta}\big(||Y-X\beta||^2+\lambda||\beta||_{l_1}\big)$$           
+                
+where $\lambda$ is a tuning parameter, acting as a shrinkage coefficient.        
+
+Compared to the ridge method, the lasso method has an advantage of inducing sparsity in the solution due to its $l_1$-norm penalty. By shrinking the coefficient estimates to zero, the lasso method results in a small number of non-zero coefficients. Thus, the lasso method is able to reduce dimensions of $\mathbf{X}$ and select predictors for us.        
+
+Despite of this advantage, Yuan & Lin (2006) pointed out that the lasso is not ideal for selecting grouped variables (categorical factors) to generate accurate predictions, since the lasso is actually designed for selecting individual variables rather than grouped variables. They commented that fitting grouped variables with the lasso often results in selecting more factors than necessary.         
+
+Yuan & Lin (2006) also noticed another disadvantage of the lasso: the solution depends on how the factors are orthornomalized. Specifically, for any factor $X_j$, the lasso may select a different set of predictors if it is re-parametrized through a different set of orthornormal contrasts.        
+
+To address these two disadvantages of the lasso method, Yuan & Lin (2006) proposed an innovated group lasso method.           
+
+Yuan & Lin (2006) defined the group lasso as the solution to 
+$$\frac{1}{2}||Y-\sum^J_{j=1}X_j\beta_j||^2+\lambda \sum^J_{j=1}||\beta_j||_{K_j}$$         
+where the matrix of features $\mathbf{X}$ is composed of $J$ groups $\mathbf{X}_1, \mathbf{X}_2, ..., \mathbf{X}_j$ and $K_j$ denotes the size of group j and $\sum_jK_j=p$.          
+
+Yuan & Lin (2006) claimed that the group lasso method is advantageous in that it is independent of the rearrangement of orthonormal contrasts used to represent the factors, thereby resulting in more accurate predictions in the case of grouped,  factorized predictors.         
+
+Nevertheless, Friedman, Hastie, & Tibshirani (2010) pointed out one disadvantage of Yuan & Lin (2006)'s group lasso method: the group lasso method does not yield sparsity within groups. The group lasso method only induces sparsity between groups. For some $\lambda$, an entire group of predictors may be excluded from the model, so it is unable to select predictors within a group. Friedman, Hastie & Tibshirani (2010) proposed the sparse group lasso model to address the issue, which is beyond the scope of this homework.        
+
+Pros and cons of the lasso and group lasso methods are summarized in Table 1.         
+
+\begin{table}
+\centering
+\caption{Summary of Pros and Cons}
+\label{table-paramvalues}
+\begin{tabular}{ p{1.5cm} p{7cm} p{7cm} }
+\hline \\ [-1.5ex]
+Method & Pros & Cons \\ [1ex]
+\hline \\ [-1.5ex]
+Lasso & Able to select predictors due to sparsity & Less accurate for grouped predictors; Solution dependent on rearrangement of orthonormal contrasts \\ [1ex]
+Group Lasso & More accurate for grouped predictors; Solution independent on rearrangement of orthonormal contrasts & Unable to yield sparsity within groups \\ [1ex]
+\hline
+\end{tabular}
+\end{table}
+
+##Background - Data Analysis Set-Up
+
+In order to evaluate how the lasso and group lasso methods deal with categorical predictors such as region, both the lasso and group lasso models are fitted on an open data found through the [Kaggle link](https://www.kaggle.com/russellyates88/suicide-rates-overview-1985-to-2016). The data *Suicide Rates Overview 1985 to 2016* contains 27820 observations and 12 predictors. A subset of the data, consisting of 936 observations of suicides happened in year 2014 only, is selected as the study data. After close examinations of the predictors, only one predictor among a set of correlated predictors is kept to avoid multicollinearity.         
+
+The response variable is *suicides.100k.pop*, representing the number of suicides per 100,000 population in 2014 across different countries, age groups and genders. The mean is 11.011, the maximum is 124.450, and the minimum is 0.000 suicides per 100,000 population.
+
+A list of candidate predictor variables is described in Table 2.           
+
+\begin{table}
+\centering
+\caption{Table of Candidate Predictors}
+\label{table-paramvalues}
+\begin{tabular}{ p{2cm} p{4.5cm} p{2cm} p{6.5cm} }
+\hline \\ [-1.5ex]
+Variable Name & Description & Type & Range/Levels\\ [1ex]
+\hline \\ [-1.5ex]
+region & Derived from country & nominal & Asia, Europe, Middle East, North America, South America\\ [1ex]
+sex & Sex & nominal & female, male \\ [1ex]
+age & Age groups & ordinal &  5-14 years, 15-24 years, 25-34 years, 35-54 years, 55-74 years, 75+ years\\ [1ex]
+HDI.for.year & Human Development Index & continuous & min=0.6270, max=0.9440, 36 NAs \\ [1ex]
+gdp.per.capita & GDP per capita & continuous & min=1465, max=126352 \\ [1ex]
+\hline
+\end{tabular}
+\end{table}
+
+There are 36 missing values in the *HDI.for.year*. After removing the missing obesrvatons, the total observations in the study data is $936-36=900$.           
+
+To deal with the categorical predictors, 5 dummy variables are created for the 6-level categorical variable *region*. Similarly, 1 dummy variable is created for the 2-level categorical variable *sex* and another 5 dummy variables are created for the 6-level categorical variable *age*. In addition to the 2 numeric variables, the number of predictors in the model is $\sum_jK_j=5+1+5+1+1=13$, resulting in a $900 \times 13$ matrix of features $\mathbf{X}$.           
+
+A group index $group = (1, 1, 1, 1, 1, 2, 3, 3, 3, 3, 3, 4, 5)$ is created to group the predictors so that the lasso group regression can make prediction for number of suicides per 100,000 population based on the grouped predictors. The lasso method directly use the matrix of features $\mathbf{X}$ containing 13 columns, ignoring the group index.         
+
+To evaluate the performance of the lasso versus the group lasson regression models using categorical predictors, the study data is splitted into $50\%$ training $(450 \times 13)$ and $50\%$ testing $(450 \times 13)$ data sets. Cross validations are used to find the best $\lambda$ for the two models, which are then used to build the models with the training data. Coefficient estimates using the two methods are outputted. Both lasso and group lasso models shrink the coefficient estimates of *gdp.per.capita* to 0. Finally, testing MSEs are calculated to compare the prediction accuracy. The lasso model outputs a testing MSE of 105.5584 while the group lasso model outputs a testing MSE of 104.6141.                 
+
+A summary of the data analysis results is shown below.         
+
+|                    | Lasso Coef| Group Lasso Coef|
+|:-------------------|----------:|----------------:|
+|(Intercept)         |    -19.919|          -17.685|
+|regionAsia          |      7.478|            7.489|
+|regionEurope        |     10.987|           10.827|
+|regionMiddle East   |      2.910|            3.071|
+|regionNorth America |      5.812|            5.828|
+|regionSouth America |      6.959|            7.008|
+|sexmale             |     14.651|           14.517|
+|age25-34 years      |      1.872|            1.911|
+|age35-54 years      |      3.698|            3.687|
+|age5-14 years       |     -8.007|           -7.719|
+|age55-74 years      |      6.568|            6.507|
+|age75+ years        |     13.632|           13.342|
+|HDI                 |     17.867|           14.910|
+|GDP                 |      0.000|            0.000|
+
+
+|            | Test MSE|
+|:-----------|--------:|
+|Lasso       | 105.5584|
+|Group Lasso | 104.6141|
+
+
+Using the *Suicide Rates Overview 1985 to 2016* data with region predictors as an example, the group lasso model is slightly better then the lasso model in terms of resulting in a smaller testing MSE.             
+
+
+## Data Analysis
+
+```{r message=FALSE, warning=FALSE}
+library(glmnet) # For lasso
+library(grpreg) # For group lasso
+library(dplyr) 
+library(knitr)
+```
+
+```{r}
+# Import the "Suicide Rates Overview 1985 to 2016" data
+data <- read.csv("~/Desktop/BIS 646/master.csv")
+# Subset of data, keeping year 2014 only, is selected for analysis
+data2014 <- filter(data, year == 2014)
+```
+
+```{r}
+# Derive the region variable based on the country variable
+data2014$region[data2014$country %in% c("Albania","Russian Federation","France","Ukraine","Germany",
+"Poland","United Kingdom","Italy","Spain","Hungary","Romania","Belgium","Belarus","Netherlands",
+"Austria", "Czech Republic","Sweden","Bulgaria","Finland","Lithuania","Switzerland","Serbia",
+"Portugal","Croatia","Norway","Denmark","Slovakia","Latvia","Greece","Slovenia","Turkey","Estonia",
+"Georgia","Albania","Luxembourg","Armenia","Iceland","Montenegro","Cyprus","Bosnia and Herzegovina",
+"San Marino","Malta","Ireland")] <- "Europe"
+
+data2014$region[data2014$country %in% c("United States","Mexico","Canada","Cuba","El Salvador",
+"Puerto Rico", "Guatemala","Costa Rica","Nicaragua","Belize","Jamaica")]<-"North America"
+
+data2014$region[data2014$country %in% c("Brazil","Colombia","Chile","Ecuador","Uruguay","Paraguay",
+"Argentina","Panama","Guyana","Suriname","Antigua and Barbuda","Grenada","Saint Lucia",
+"Saint Vincent and Grenadines")] <- "South America"
+
+data2014$region[data2014$country %in% c("Mauritius","Seychelles","South Africa")] <- "Africa"
+
+data2014$region[data2014$country %in% c("Kazakhstan","Uzbekistan","Kyrgyzstan","Israel",
+"Turkmenistan","Azerbaijan","Kuwait","United Arab Emirates","Qatar","Bahrain","Oman")] <- "Middle East"
+
+data2014$region[data2014$country %in% c("Japan","Republic of Korea", "Thailand", "Sri Lanka",
+"Philippines","New Zealand","Australia","Singapore","Macau","Mongolia")] <- "Asia"
+
+# Check that all observations have been assigned a corresponding region
+# table(data2014$region, exclude = NULL)
+```
+
+
+```{r}
+study <- data.frame(region = data2014$region, sex = data2014$sex, age = data2014$age, 
+                    HDI = data2014$HDI.for.year, GDP = data2014$gdp_per_capita, 
+                    Y = data2014$suicides.100k.pop)
+# Structure of the study data
+# str(study)
+```
+
+```{r}
+# Testing-Training Split
+# After removing 36 missing values in the HDI variable, the study data has 900 observations
+study <- na.omit(study)
+# dim(study) # 900 by 6
+# Split the study data into half training and half testing
+train_size <- floor(0.5 * nrow(study))
+set.seed(123)
+train_ind <- sample(seq_len(nrow(study)), size = train_size)
+train <- study[train_ind, ]
+test <- study[-train_ind, ]
+```
+
+```{r}
+# model.matrix() function creates dummy coding for categorical varialbes
+# trim off the first column, leaving only the predictors
+x = model.matrix(Y~., train)[,-1] 
+# Training data is 450 by 13
+# dim(x) # 450 by 13
+y = train$Y
+```
+
+\newpage
+
+## Lasso Model
+```{r}
+# Find the best lambda using cross-validation
+set.seed(123) 
+cv_lasso <- cv.glmnet(x, y, alpha = 1) # alpha = 1 for lasso
+
+# Display the best lambda value
+cv_lasso$lambda.min
+
+# Plot MSE over a range of log lambda
+plot(cv_lasso, main = "Lasso")
+
+# Fit the lasso model on the training data using the best lambda
+lasso <- glmnet(x, y, alpha = 1, lambda = cv_lasso$lambda.min)
+
+# Dsiplay the lasso regression coefficients
+lassocf <- as.data.frame(as.matrix(coef(lasso)))
+colnames(lassocf) <- "Lasso Coef"
+lassocf$`Lasso Coef` <- round(lassocf$`Lasso Coef`, digits = 3)
+kable(lassocf) # only coefficient estimate of GDP is shrinked to 0
+
+# Plot the lasso coefficient estimates over a range of log lambda
+plot(glmnet(x, y, alpha=1), xvar="lambda", main = "Lasso")
+```
+
+```{r}
+# Make predictions on the test data
+x.test <- model.matrix(Y ~., test)[,-1]
+y.test = test$Y
+
+# Retrieve the predictions based on the lasso model
+lasso_pred <- lasso %>% predict(x.test) %>% as.vector()
+
+# Testing MSE with the lasso model
+mean((lasso_pred - y.test)^2)
+```
+
+\newpage
+
+## Group Lasso Model
+```{r}
+# Create the group index according to 
+# x1-x5 = regions, x6 = sex, x7-x11 = age groups, x12 = HDI, x13 = GDP
+group <- c(rep(1, 5), 2, rep(3, 5),4, 5)
+
+#Fit the group lasso model using the best lambda obtained from cross-validation
+grouplasso <- cv.grpreg(x, y, group, seed = 123) #default = group lasso
+
+# Display the best lambda value
+grouplasso$lambda.min
+
+# Plot cross-validation error over log lambda
+plot(grouplasso, main = "Group Lasso")
+
+# Summary of the group lasso regression model
+summary(grouplasso)
+
+# Dsiplay the group lasso regression coefficients
+grouplassocf <- as.data.frame(coef(grouplasso))
+colnames(grouplassocf) <- "Group Lasso Coef"
+grouplassocf$`Group Lasso Coef` <- round(grouplassocf$`Group Lasso Coef`, digits = 3)
+kable(grouplassocf)
+# Similarly to the lasso method, the group lasso method also shrinks coefficient of GDP to 0
+
+# Plot the group lasso coefficient estimates over a range of log lambda
+gl <- grpreg(x, y, group, penalty = "grLasso")
+plot(gl, main = "Group Lasso", log.l = TRUE)
+```
+
+```{r}
+# Retrieve the predictions based on the group lasso model
+grouplasso_pred <- grouplasso %>% predict(x.test) %>% as.vector()
+
+# Testing MSE with the group lasso model
+mean((grouplasso_pred - y.test)^2)
+```
+
+## Reference
+
+Friedman, J., Hastie, T., & Tibshirani, R. (2010). A note on the group lasso and a sparse group lasso.
+
+|      arXiv.org. [arXiv:1001.0736](arXiv:1001.0736)             
+
+Suicide Rates Overview 1985 to 2016. Kaggle.
+[https://www.kaggle.com/russellyates88/suicide-rates-overview-1985-to-2016](https://www.kaggle.com/russellyates88/suicide-rates-overview-1985-to-2016)            
+
+Yuan, M., & Lin, Y. (2006). Model selection and estimation in regression with grouped variables. 
+
+|       *Journal of the Royal Statistical Society: Series B* (68), 49-67.
+|       [https://doi.org/10.1111/j.1467-9868.2005.00532.x](https://doi.org/10.1111/j.1467-9868.2005.00532.x)                     
+

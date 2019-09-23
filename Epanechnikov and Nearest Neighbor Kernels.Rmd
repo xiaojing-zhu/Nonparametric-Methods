@@ -1,0 +1,108 @@
+---
+title: "Epanechnikov and Nearest Neighbor Kernels"
+author: "Xiaojing Zhu"
+date: "9/12/2019"
+output: html_document
+---
+
+### Simulation Setup Description
+
+First, randomly generate 100 pairs of $(x_i,y_i)$ from $Y=sin(4X)+\epsilon$ where $X\sim U[0,1]$ and $\epsilon\sim N(0,\frac{1}{3})$. Set a seed of 123 to generate reproducible $x_i$ and $\epsilon_i$.       
+                
+The Epanechnikove kernels are calculated with a half window width $h=0.2$. The Epanechnikove kernel is defined as $K_\lambda(x_0,x) = D(\frac{|x-x_0|}{h_{\lambda}(x_o)})$ where $D(t) = \frac{3}{4}(1-t^2)$ if $|t| \leq 1$ and $D(t)=0$ otherwise. Then, the Nadaraya-Watson kernel weighted average, defined as $\hat f(x_0)=\frac{\sum^N_{i=1}K_\lambda(x_0,x_i)y_i}{\sum^N_{i=1}K_\lambda(x_0,x_i)}$, is calculated to find the fitted values. The true relationship between $X$ and $Y$ is shown by a green curve, and the fitted Epanechnikove kernel regression is shown by a black curve. Choosing the target point $x_0 = 0.6$ as an example, the fitted constant $\hat f(x_0)$ is indicated by the red lines and a red point. The Epanechnikove kernel between the window $x=0.4$ and $x=0.8$ is indicated by the yellow region, showing weights assigned to obsevations. Observations contributing to the fit at $x_0 = 0.6$ are displayed as blue circles, in contrast to the black circles outside the window.       
+              
+The K-nearest-neighbor average is calculated to find the fitted values. The K-nearest-neighbor average is defined as $\hat f(x_0) = \text{Mean}(y_i|x_i \in N_k(x_0))$,  where $N_k(x_0)$ is a set of k points nearest to $x_0$ in squared distance. In this case, $k$ is set to 20, so 20-nearest neighbors are considered for each $x_0$. The true relationship between $X$ and $Y$ is shown by a green curve, the fitted Epanechnikove kernel regression is shown by a black curve, and the 20-nearest-neighbor running-mean smoother is shown by a blue curve.          
+            
+### Epanechnikove kernels
+
+```{r}
+# Set seed to generate reproducible random numbers
+set.seed(123)
+# X follows a uniform distribution
+X <- runif(100, 0, 1)
+
+# Set seed to generate reproducible random numbers
+set.seed(123)
+# The error term follows a normal distribution
+E <- rnorm(100, 0, 1/3)
+
+# Write a function "sinfunc" to generate Y
+sinfunc <- function(x){ sin(4 * x) }
+
+Y <- sinfunc(X) + E
+
+DATA <- data.frame(X, Y)
+```
+
+```{r}
+# Write a function "EK" to calculate the Epanechnikove kernel
+EK <- function(x, x0 = 0.6, h = 0.2){
+  # default x0 is 0.6
+  # default half window width h is 0.2
+  # The Epanechnikove kernel assigns weights to observations 
+  # based on their distances to the target point
+  t <- abs(x - x0)/h
+  if (t <= 1){ D <- 3/4 * (1-t^2) }
+  else { D <- 0 }
+  return(D)
+}
+```
+
+```{r}
+# Write a function "NW" to calculate the Nadaraya-Watson kernel weighted average
+# based on values obtained from the EK function
+NW <- function(target, h = 0.2){
+  # Default half window width h is 0.2
+  x <- DATA[(target - h) <= X & X<= (target + h), ]$X
+  y <- DATA[(target - h) <= X & X<= (target + h), ]$Y
+  # Embed the EK function to calculate Epanechnikove kernels
+  k <- sapply(x, EK, x0 = target)
+  # Return the Nadaraya-Watson kernel weighted average for each target x0
+  return(sum(k * y) / sum(k))
+}
+```
+
+```{r}
+# Specify the window vector "w"
+w = seq(0.4, 0.8,length=100)
+# Specify the vector "xaxis" to store values along the x-axis
+xaxis <- seq(0, 1, length = 100)
+
+# Plot the Epanechnikove kernel
+plot(DATA$X, DATA$Y, col = ifelse(0.4 <= X & X <= 0.8, "white", "black"), xlab = "x", 
+     ylab = "y", main = "Epanechnikov Kernel (Black)", cex = 0.8)
+polygon(w, sapply(w, EK), col = adjustcolor("yellow", alpha.f = 0.6), 
+        border = "yellow") # Epanechnikov kernel (yellow) assigns weights within the window
+# Points contributing to the fit within the window are blue
+points(DATA$X[0.4 <= X & X <= 0.8], DATA[0.4 <= X & X <= 0.8, ]$Y, col = "blue", cex = 0.8)
+lines(xaxis, sinfunc(xaxis), col = "green") # True relationship is in green
+# sapply(xaxis, NW) feeds the entire x-axis as the target parameter of NW functon
+lines(xaxis, sapply(xaxis, NW), col = "black") # Epanechnikov kernel is in black
+points(0.6, NW(target = 0.6), pch = 16, col = "red", cex = 0.8) 
+# Target point of interest is in red
+segments(0.6, -1, 0.6, NW(target = 0.6), col="red") 
+segments(0.4, NW(target = 0.6), 0.8, NW(target = 0.6), col="red")
+
+```
+
+### Nearest Neighbor Kernel vs. Epanechnikov Kernels
+
+```{r}
+# Specify the vector "xaxis" to store values along the x-axis
+xaxis <- seq(0, 1, length = 100)
+# Initialize the vector "knn_yhat" to store the K-nearest-neighbor averages
+knn_yhat <- rep(NA, 100)
+for(i in 1:100){
+  # Assume 20 nearest neighbors
+  k <- 20
+  knn_yhat[i] <- mean(DATA$Y[order(sqrt((DATA$X - xaxis[i])^2))[1:k]])
+}
+```
+
+```{r}
+plot(DATA$X, DATA$Y, cex = 0.8, xlab = "x", ylab = "y", 
+     main = "Nearest Neighbor (Blue) and Epanechnikov (Black) Kernels" )
+lines(xaxis, sinfunc(xaxis), col = "green") # True relationship is in green
+lines(xaxis, sapply(xaxis, NW), col = "black") # Epanechnikov kernel is in black
+lines(xaxis, knn_yhat, col = "blue") # Nearest neighbor kernel is in blue
+```
